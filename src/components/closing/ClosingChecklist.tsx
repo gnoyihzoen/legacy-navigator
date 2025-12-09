@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Progress } from '@/components/ui/progress';
+import { useApp } from '@/context/AppContext';
 import { 
   Zap, 
   Phone, 
@@ -149,6 +150,7 @@ const initialCategories: Category[] = [
 
 export function ClosingChecklist() {
   const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const { updateModuleStatus } = useApp();
 
   const toggleItem = (categoryId: string, itemId: string) => {
     setCategories((prev) =>
@@ -171,6 +173,12 @@ export function ClosingChecklist() {
     0
   );
   const progress = (completedItems / totalItems) * 100;
+
+  // Update Module 4 progress when items change
+  useEffect(() => {
+    const status = completedItems === 0 ? 'pending' : completedItems === totalItems ? 'completed' : 'in-progress';
+    updateModuleStatus(4, status, completedItems);
+  }, [completedItems, totalItems, updateModuleStatus]);
 
   return (
     <div className="space-y-6 animate-fade-in">

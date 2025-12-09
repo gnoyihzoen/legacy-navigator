@@ -108,7 +108,7 @@ const createInitialModules = (legalPath: LegalPath): Module[] => [
     description: 'Cancel accounts and subscriptions',
     status: 'pending',
     progress: 0,
-    total: 8,
+    total: 12,
     route: '/closing',
   },
 ];
