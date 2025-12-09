@@ -44,21 +44,6 @@ const initialDocuments: Document[] = [
     required: true,
     uploaded: false,
   },
-  {
-    id: 'marriage-cert',
-    name: 'Marriage Certificate',
-    description: 'Required if you are the spouse of the deceased',
-    required: true,
-    uploaded: false,
-    conditional: { field: 'relationship', value: 'spouse' },
-  },
-  {
-    id: 'applicant-nric',
-    name: 'Your NRIC',
-    description: 'Front and back copy of your identity card',
-    required: true,
-    uploaded: false,
-  },
 ];
 
 const createInitialModules = (legalPath: LegalPath): Module[] => [
@@ -68,7 +53,7 @@ const createInitialModules = (legalPath: LegalPath): Module[] => [
     description: 'Gather essential legal documents',
     status: 'pending',
     progress: 0,
-    total: 4,
+    total: 2,
     route: '/documents',
   },
   {
