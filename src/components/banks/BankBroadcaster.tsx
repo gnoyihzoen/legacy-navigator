@@ -107,7 +107,7 @@ export function BankBroadcaster() {
     });
 
     setGenerating(false);
-    toast.success(`Generated letters for ${selectedBanks.length} banks`, {
+    toast.success(`Generated letters and sent to ${selectedBanks.length} banks`, {
       description: 'Status updated to "Awaiting Reply". Upload bank replies when received.',
     });
   };
@@ -351,7 +351,7 @@ export function BankBroadcaster() {
                 ) : (
                   <>
                     <Download className="mr-2 h-4 w-4" />
-                    Generate Letters ({selectedBanks.length})
+                    Generate Letters and Send ({selectedBanks.length})
                   </>
                 )}
               </Button>
