@@ -1,10 +1,10 @@
 import { Layout } from '@/components/layout/Layout';
-import { CourtTracker } from '@/components/legal/CourtTracker';
+import { LegalGenerator } from '@/components/legal/LegalGenerator';
 
 export default function LegalPage() {
   return (
     <Layout>
-      <CourtTracker />
+      <LegalGenerator />
     </Layout>
   );
 }
