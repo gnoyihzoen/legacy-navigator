@@ -6,7 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useApp } from '@/context/AppContext';
 import { BankStatus } from '@/types';
-import { Building2, Download, Mail, CheckCircle2, Clock, AlertCircle, XCircle, Info } from 'lucide-react';
+import { 
+  Building2, Download, Mail, CheckCircle2, Clock, AlertCircle, XCircle, Info, 
+  Upload, FileText, Home, Car, Shield, DollarSign 
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -16,6 +19,50 @@ const statusOptions = [
   { value: 'sent', label: 'Sent to Bank', icon: Mail, color: 'text-warning' },
   { value: 'reply-found', label: 'Account Found', icon: CheckCircle2, color: 'text-secondary' },
   { value: 'reply-not-found', label: 'No Account', icon: XCircle, color: 'text-muted-foreground' },
+];
+
+interface AssetDocument {
+  id: string;
+  name: string;
+  description: string;
+  icon: typeof FileText;
+  uploaded: boolean;
+  value: number;
+}
+
+const initialAssetDocuments: AssetDocument[] = [
+  { 
+    id: 'bank-statement', 
+    name: 'Bank Statements', 
+    description: 'Statements from any known bank accounts',
+    icon: FileText,
+    uploaded: false,
+    value: 45000,
+  },
+  { 
+    id: 'insurance-plan', 
+    name: 'Insurance Plans', 
+    description: 'Life insurance, health insurance policies',
+    icon: Shield,
+    uploaded: false,
+    value: 150000,
+  },
+  { 
+    id: 'property-lease', 
+    name: 'Private Property Lease', 
+    description: 'Property ownership or lease documents',
+    icon: Home,
+    uploaded: false,
+    value: 850000,
+  },
+  { 
+    id: 'vehicle-registration', 
+    name: 'Vehicle Registration', 
+    description: 'Car or motorcycle registration documents',
+    icon: Car,
+    uploaded: false,
+    value: 35000,
+  },
 ];
 
 function BankRow({ bank, onToggle, onStatusChange }: { 
@@ -65,12 +112,57 @@ function BankRow({ bank, onToggle, onStatusChange }: {
   );
 }
 
+function AssetDocumentRow({ doc, onUpload }: { 
+  doc: AssetDocument; 
+  onUpload: () => void;
+}) {
+  const Icon = doc.icon;
+
+  return (
+    <div className={cn(
+      'flex items-center gap-4 p-4 rounded-lg border transition-colors',
+      doc.uploaded ? 'bg-secondary/10 border-secondary/30' : 'bg-card border-border'
+    )}>
+      <div className={cn(
+        'p-2 rounded-lg',
+        doc.uploaded ? 'bg-secondary/20' : 'bg-muted'
+      )}>
+        <Icon className={cn('h-5 w-5', doc.uploaded ? 'text-secondary' : 'text-muted-foreground')} />
+      </div>
+      <div className="flex-1">
+        <p className="font-medium text-foreground">{doc.name}</p>
+        <p className="text-sm text-muted-foreground">{doc.description}</p>
+      </div>
+      {doc.uploaded ? (
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="bg-secondary/20 text-secondary">
+            <CheckCircle2 className="h-3 w-3 mr-1" />
+            Uploaded
+          </Badge>
+          <span className="text-sm font-medium text-foreground">
+            ${doc.value.toLocaleString()}
+          </span>
+        </div>
+      ) : (
+        <Button variant="outline" size="sm" onClick={onUpload}>
+          <Upload className="h-4 w-4 mr-2" />
+          Upload
+        </Button>
+      )}
+    </div>
+  );
+}
+
 export function BankBroadcaster() {
   const { banks, toggleBankSelection, updateBankStatus } = useApp();
   const [generating, setGenerating] = useState(false);
+  const [assetDocs, setAssetDocs] = useState<AssetDocument[]>(initialAssetDocuments);
 
   const selectedBanks = banks.filter((b) => b.selected);
   const banksWithAccounts = banks.filter((b) => b.status === 'reply-found');
+  
+  const uploadedDocs = assetDocs.filter((d) => d.uploaded);
+  const totalEstateValue = uploadedDocs.reduce((sum, doc) => sum + doc.value, 0);
 
   const handleGenerateLetters = async () => {
     if (selectedBanks.length === 0) {
@@ -109,15 +201,80 @@ export function BankBroadcaster() {
     });
   };
 
+  const handleUploadAssetDoc = (docId: string) => {
+    setAssetDocs((prev) =>
+      prev.map((doc) =>
+        doc.id === docId ? { ...doc, uploaded: true } : doc
+      )
+    );
+    const doc = assetDocs.find((d) => d.id === docId);
+    toast.success(`${doc?.name} uploaded successfully`, {
+      description: `Estimated value: $${doc?.value.toLocaleString()}`,
+    });
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div>
         <h2 className="text-2xl font-semibold text-foreground">Asset Discovery</h2>
         <p className="text-muted-foreground mt-1">
-          Identify which banks hold accounts belonging to the deceased
+          Identify and document assets belonging to the deceased
         </p>
       </div>
+
+      {/* Total Estate Value Summary */}
+      {uploadedDocs.length > 0 && (
+        <Card className="border-primary bg-primary/5">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/20">
+                  <DollarSign className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Documented Estate Value</p>
+                  <p className="text-2xl font-bold text-foreground">
+                    ${totalEstateValue.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-primary border-primary">
+                {uploadedDocs.length} document{uploadedDocs.length > 1 ? 's' : ''} uploaded
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Known Assets Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Documents You Already Have
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Upload any existing documents for assets you've already identified
+              </CardDescription>
+            </div>
+            <Badge variant="secondary">
+              {uploadedDocs.length}/{assetDocs.length} Uploaded
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {assetDocs.map((doc) => (
+            <AssetDocumentRow
+              key={doc.id}
+              doc={doc}
+              onUpload={() => handleUploadAssetDoc(doc.id)}
+            />
+          ))}
+        </CardContent>
+      </Card>
 
       {/* Info Banner */}
       <Card className="bg-accent/50 border-accent">
@@ -125,7 +282,7 @@ export function BankBroadcaster() {
           <div className="flex gap-3">
             <Info className="h-5 w-5 text-accent-foreground flex-shrink-0 mt-0.5" />
             <div className="text-sm">
-              <p className="font-medium text-accent-foreground">How this works</p>
+              <p className="font-medium text-accent-foreground">Discover Unknown Accounts</p>
               <p className="text-muted-foreground mt-1">
                 We'll generate inquiry letters for each bank you select. Send these letters to each bank's 
                 estate management department. Once the bank replies, update the status here to track your progress.
