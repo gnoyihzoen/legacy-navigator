@@ -27,7 +27,6 @@ export function Header() {
             </div>
             <div>
               <h1 className="text-sm font-semibold text-foreground leading-tight">SGEase</h1>
-              <p className="text-xs text-muted-foreground">Estate Navigator</p>
             </div>
           </div>
         </div>
