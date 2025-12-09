@@ -26,7 +26,7 @@ export function Header() {
               <span className="text-primary-foreground font-bold text-sm">AL</span>
             </div>
             <div>
-              <h1 className="text-sm font-semibold text-foreground leading-tight">Afterlife</h1>
+              <h1 className="text-sm font-semibold text-foreground leading-tight">SGEase</h1>
               <p className="text-xs text-muted-foreground">Estate Navigator</p>
             </div>
           </div>
