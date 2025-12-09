@@ -21,60 +21,23 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-// Mock data: DBS returns $12,500, others return no assets
+// Mock data: DBS returns $12,500, others return $5,000
 const BANK_ASSETS_MOCK: Record<string, number> = {
   'dbs': 12500,
 };
 
-interface AssetDocument {
-  id: string;
-  name: string;
-  description: string;
-  icon: typeof FileText;
-  uploaded: boolean;
-  value: number;
-}
-
-const initialAssetDocuments: AssetDocument[] = [
-  { 
-    id: 'bank-statement', 
-    name: 'Bank Statements', 
-    description: 'Statements from any known bank accounts',
-    icon: FileText,
-    uploaded: false,
-    value: 45000,
-  },
-  { 
-    id: 'insurance-plan', 
-    name: 'Insurance Plans', 
-    description: 'Life insurance, health insurance policies',
-    icon: Shield,
-    uploaded: false,
-    value: 150000,
-  },
-  { 
-    id: 'property-lease', 
-    name: 'Private Property Lease', 
-    description: 'Property ownership or lease documents',
-    icon: Home,
-    uploaded: false,
-    value: 850000,
-  },
-  { 
-    id: 'vehicle-registration', 
-    name: 'Vehicle Registration', 
-    description: 'Car or motorcycle registration documents',
-    icon: Car,
-    uploaded: false,
-    value: 35000,
-  },
-];
+const iconMap: Record<string, typeof FileText> = {
+  'bank-statement': FileText,
+  'insurance-plan': Shield,
+  'property-lease': Home,
+  'vehicle-registration': Car,
+};
 
 function AssetDocumentRow({ doc, onUpload }: { 
-  doc: AssetDocument; 
+  doc: { id: string; name: string; description: string; uploaded: boolean; value: number }; 
   onUpload: () => void;
 }) {
-  const Icon = doc.icon;
+  const Icon = iconMap[doc.id] || FileText;
 
   return (
     <div className={cn(
@@ -112,21 +75,19 @@ function AssetDocumentRow({ doc, onUpload }: {
 }
 
 export function BankBroadcaster() {
-  const { banks, toggleBankSelection, updateBankStatus } = useApp();
+  const { banks, toggleBankSelection, updateBankStatus, assetDocuments, bankAssets, updateAssetDocument, updateBankAsset, getTotalEstateValue } = useApp();
   const [generating, setGenerating] = useState(false);
-  const [assetDocs, setAssetDocs] = useState<AssetDocument[]>(initialAssetDocuments);
   const [scanningBankId, setScanningBankId] = useState<string | null>(null);
-  const [bankAssets, setBankAssets] = useState<Record<string, number>>({});
 
   const selectedBanks = banks.filter((b) => b.selected);
   
   // Track which banks user marked as "assets-found" (pending upload)
   const [pendingUpload, setPendingUpload] = useState<Record<string, boolean>>({});
   
-  const uploadedDocs = assetDocs.filter((d) => d.uploaded);
+  const uploadedDocs = assetDocuments.filter((d) => d.uploaded);
   const docEstateValue = uploadedDocs.reduce((sum, doc) => sum + doc.value, 0);
   const bankEstateValue = Object.values(bankAssets).reduce((sum, val) => sum + val, 0);
-  const totalEstateValue = docEstateValue + bankEstateValue;
+  const totalEstateValue = getTotalEstateValue();
 
   const handleGenerateLetters = async () => {
     if (selectedBanks.length === 0) {
@@ -190,7 +151,7 @@ export function BankBroadcaster() {
     const assetValue = BANK_ASSETS_MOCK[bank.id] || 5000;
     
     updateBankStatus(bank.id, 'reply-found');
-    setBankAssets((prev) => ({ ...prev, [bank.id]: assetValue }));
+    updateBankAsset(bank.id, bank.name, assetValue);
     setPendingUpload((prev) => ({ ...prev, [bank.id]: false }));
     toast.success(`Document scanned for ${bank.name}!`, {
       description: `Detected balance: $${assetValue.toLocaleString()}`,
@@ -200,12 +161,8 @@ export function BankBroadcaster() {
   };
 
   const handleUploadAssetDoc = (docId: string) => {
-    setAssetDocs((prev) =>
-      prev.map((doc) =>
-        doc.id === docId ? { ...doc, uploaded: true } : doc
-      )
-    );
-    const doc = assetDocs.find((d) => d.id === docId);
+    updateAssetDocument(docId, true);
+    const doc = assetDocuments.find((d) => d.id === docId);
     toast.success(`${doc?.name} uploaded successfully`, {
       description: `Estimated value: $${doc?.value.toLocaleString()}`,
     });
@@ -333,12 +290,12 @@ export function BankBroadcaster() {
               </CardDescription>
             </div>
             <Badge variant="secondary">
-              {uploadedDocs.length}/{assetDocs.length} Uploaded
+              {uploadedDocs.length}/{assetDocuments.length} Uploaded
             </Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-2">
-          {assetDocs.map((doc) => (
+          {assetDocuments.map((doc) => (
             <AssetDocumentRow
               key={doc.id}
               doc={doc}
