@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useApp } from '@/context/AppContext';
 import { BankStatus } from '@/types';
 import { 
@@ -119,6 +120,9 @@ export function BankBroadcaster() {
 
   const selectedBanks = banks.filter((b) => b.selected);
   
+  // Track which banks user marked as "assets-found" (pending upload)
+  const [pendingUpload, setPendingUpload] = useState<Record<string, boolean>>({});
+  
   const uploadedDocs = assetDocs.filter((d) => d.uploaded);
   const docEstateValue = uploadedDocs.reduce((sum, doc) => sum + doc.value, 0);
   const bankEstateValue = Object.values(bankAssets).reduce((sum, val) => sum + val, 0);
@@ -165,27 +169,32 @@ export function BankBroadcaster() {
     });
   };
 
+  const handleResponseStatusChange = (bank: BankStatus, value: string) => {
+    if (value === 'no-assets') {
+      updateBankStatus(bank.id, 'reply-not-found');
+      setPendingUpload((prev) => ({ ...prev, [bank.id]: false }));
+      toast.info(`Marked ${bank.name} as no assets found`);
+    } else if (value === 'assets-found') {
+      setPendingUpload((prev) => ({ ...prev, [bank.id]: true }));
+      toast.info(`Please upload the bank reply for ${bank.name}`);
+    }
+  };
+
   const handleUploadReply = async (bank: BankStatus) => {
     setScanningBankId(bank.id);
     
     // Simulate OCR/AI scanning for 2 seconds
     await new Promise((resolve) => setTimeout(resolve, 2000));
     
-    // Check mock data - DBS has assets, others don't
-    const assetValue = BANK_ASSETS_MOCK[bank.id] || 0;
+    // Check mock data - DBS has assets ($12,500), others default to $5,000
+    const assetValue = BANK_ASSETS_MOCK[bank.id] || 5000;
     
-    if (assetValue > 0) {
-      updateBankStatus(bank.id, 'reply-found');
-      setBankAssets((prev) => ({ ...prev, [bank.id]: assetValue }));
-      toast.success(`Assets found at ${bank.name}!`, {
-        description: `Detected balance: $${assetValue.toLocaleString()}`,
-      });
-    } else {
-      updateBankStatus(bank.id, 'reply-not-found');
-      toast.info(`No assets found at ${bank.name}`, {
-        description: 'The scan detected no accounts held by the deceased.',
-      });
-    }
+    updateBankStatus(bank.id, 'reply-found');
+    setBankAssets((prev) => ({ ...prev, [bank.id]: assetValue }));
+    setPendingUpload((prev) => ({ ...prev, [bank.id]: false }));
+    toast.success(`Document scanned for ${bank.name}!`, {
+      description: `Detected balance: $${assetValue.toLocaleString()}`,
+    });
     
     setScanningBankId(null);
   };
@@ -202,34 +211,73 @@ export function BankBroadcaster() {
     });
   };
 
-  const getStatusBadge = (bank: BankStatus) => {
-    switch (bank.status) {
-      case 'not-started':
-        return <Badge variant="outline" className="text-muted-foreground">Pending</Badge>;
-      case 'letter-generated':
-      case 'sent':
-        return <Badge variant="outline" className="text-warning border-warning">Awaiting Reply</Badge>;
-      case 'reply-found':
-        return (
-          <Badge className="bg-secondary text-secondary-foreground">
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            Assets Found: ${(bankAssets[bank.id] || 0).toLocaleString()}
-          </Badge>
-        );
-      case 'reply-not-found':
-        return (
-          <Badge variant="secondary" className="text-muted-foreground">
-            <XCircle className="h-3 w-3 mr-1" />
-            No Assets
-          </Badge>
-        );
-      default:
-        return null;
+  const getResponseStatusCell = (bank: BankStatus) => {
+    // If finalized (uploaded or no assets), show badge
+    if (bank.status === 'reply-found') {
+      return (
+        <Badge className="bg-secondary text-secondary-foreground">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          Assets: ${(bankAssets[bank.id] || 0).toLocaleString()}
+        </Badge>
+      );
     }
+    
+    if (bank.status === 'reply-not-found') {
+      return (
+        <Badge variant="secondary" className="text-muted-foreground">
+          <XCircle className="h-3 w-3 mr-1" />
+          No Assets
+        </Badge>
+      );
+    }
+    
+    // If letter generated, show dropdown
+    if (bank.status === 'letter-generated' || bank.status === 'sent') {
+      return (
+        <Select onValueChange={(value) => handleResponseStatusChange(bank, value)}>
+          <SelectTrigger className="w-[140px] h-8 text-xs">
+            <SelectValue placeholder="Select status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="assets-found">Assets Found</SelectItem>
+            <SelectItem value="no-assets">No Assets</SelectItem>
+          </SelectContent>
+        </Select>
+      );
+    }
+    
+    // Not started
+    return <span className="text-sm text-muted-foreground">—</span>;
   };
 
-  const showUploadButton = (bank: BankStatus) => {
-    return bank.status === 'letter-generated' || bank.status === 'sent';
+  const getActionCell = (bank: BankStatus) => {
+    if (scanningBankId === bank.id) {
+      return (
+        <div className="flex items-center justify-center gap-2 text-primary">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span className="text-sm">Scanning...</span>
+        </div>
+      );
+    }
+    
+    if (pendingUpload[bank.id]) {
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleUploadReply(bank)}
+        >
+          <Upload className="h-4 w-4 mr-1" />
+          Upload Reply
+        </Button>
+      );
+    }
+    
+    if (bank.status === 'reply-found' || bank.status === 'reply-not-found') {
+      return <CheckCircle2 className="h-4 w-4 text-muted-foreground mx-auto" />;
+    }
+    
+    return <span className="text-sm text-muted-foreground">—</span>;
   };
 
   return (
@@ -395,28 +443,10 @@ export function BankBroadcaster() {
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      {getStatusBadge(bank)}
+                      {getResponseStatusCell(bank)}
                     </TableCell>
                     <TableCell className="text-center">
-                      {scanningBankId === bank.id ? (
-                        <div className="flex items-center justify-center gap-2 text-primary">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          <span className="text-sm">Scanning Document...</span>
-                        </div>
-                      ) : showUploadButton(bank) ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleUploadReply(bank)}
-                        >
-                          <Upload className="h-4 w-4 mr-1" />
-                          Upload Reply
-                        </Button>
-                      ) : bank.status === 'reply-found' || bank.status === 'reply-not-found' ? (
-                        <CheckCircle2 className="h-4 w-4 text-muted-foreground mx-auto" />
-                      ) : (
-                        <span className="text-sm text-muted-foreground">—</span>
-                      )}
+                      {getActionCell(bank)}
                     </TableCell>
                   </TableRow>
                 ))}
