@@ -26,7 +26,7 @@ export default function Welcome() {
             <Heart className="h-8 w-8 text-primary-foreground" />
           </div>
           <h1 className="text-3xl font-bold text-foreground mb-3">
-            Afterlife Estate Navigator
+            SGEase
           </h1>
           <p className="text-lg text-muted-foreground max-w-md mx-auto">
             A step-by-step guide to help you navigate estate administration in Singapore
