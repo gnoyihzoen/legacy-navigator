@@ -1,12 +1,30 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { TriageResult, Module, BankStatus, Document, LegalPath } from '@/types';
 
+export interface AssetDocument {
+  id: string;
+  name: string;
+  description: string;
+  uploaded: boolean;
+  value: number;
+}
+
+export interface DiscoveredAsset {
+  id: string;
+  institution: string;
+  accountType: string;
+  value: number;
+}
+
 interface AppState {
   triageComplete: boolean;
   triageResult: TriageResult;
   modules: Module[];
   banks: BankStatus[];
   documents: Document[];
+  assetDocuments: AssetDocument[];
+  bankAssets: Record<string, number>;
+  discoveredAssets: DiscoveredAsset[];
 }
 
 interface AppContextType extends AppState {
@@ -15,6 +33,9 @@ interface AppContextType extends AppState {
   updateBankStatus: (bankId: string, status: BankStatus['status']) => void;
   toggleBankSelection: (bankId: string) => void;
   updateDocument: (docId: string, uploaded: boolean) => void;
+  updateAssetDocument: (docId: string, uploaded: boolean) => void;
+  updateBankAsset: (bankId: string, bankName: string, value: number) => void;
+  getTotalEstateValue: () => number;
   resetApp: () => void;
 }
 
@@ -27,6 +48,13 @@ const initialBanks: BankStatus[] = [
   { id: 'maybank', name: 'Maybank', selected: true, status: 'not-started' },
   { id: 'hsbc', name: 'HSBC', selected: false, status: 'not-started' },
   { id: 'citibank', name: 'Citibank', selected: false, status: 'not-started' },
+];
+
+const initialAssetDocuments: AssetDocument[] = [
+  { id: 'bank-statement', name: 'Bank Statements', description: 'Statements from any known bank accounts', uploaded: false, value: 45000 },
+  { id: 'insurance-plan', name: 'Insurance Plans', description: 'Life insurance, health insurance policies', uploaded: false, value: 150000 },
+  { id: 'property-lease', name: 'Private Property Lease', description: 'Property ownership or lease documents', uploaded: false, value: 850000 },
+  { id: 'vehicle-registration', name: 'Vehicle Registration', description: 'Car or motorcycle registration documents', uploaded: false, value: 35000 },
 ];
 
 const initialDocuments: Document[] = [
@@ -120,6 +148,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     modules: createInitialModules(null),
     banks: initialBanks,
     documents: initialDocuments,
+    assetDocuments: initialAssetDocuments,
+    bankAssets: {},
+    discoveredAssets: [],
   });
 
   const setTriageResult = (result: TriageResult) => {
@@ -177,6 +208,109 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const updateAssetDocument = (docId: string, uploaded: boolean) => {
+    setState((prev) => {
+      const newAssetDocs = prev.assetDocuments.map((d) =>
+        d.id === docId ? { ...d, uploaded } : d
+      );
+      
+      // Create discovered asset entry for uploaded docs
+      const doc = prev.assetDocuments.find(d => d.id === docId);
+      let newDiscoveredAssets = [...prev.discoveredAssets];
+      
+      if (uploaded && doc) {
+        const assetTypeMap: Record<string, string> = {
+          'bank-statement': 'Bank Account',
+          'insurance-plan': 'Life Insurance Policy',
+          'property-lease': 'Property',
+          'vehicle-registration': 'Vehicle',
+        };
+        const institutionMap: Record<string, string> = {
+          'bank-statement': 'Various Banks',
+          'insurance-plan': 'Insurance Provider',
+          'property-lease': 'HDB/Private',
+          'vehicle-registration': 'LTA',
+        };
+        
+        if (!newDiscoveredAssets.find(a => a.id === docId)) {
+          newDiscoveredAssets.push({
+            id: docId,
+            institution: institutionMap[docId] || doc.name,
+            accountType: assetTypeMap[docId] || doc.name,
+            value: doc.value,
+          });
+        }
+      } else {
+        newDiscoveredAssets = newDiscoveredAssets.filter(a => a.id !== docId);
+      }
+      
+      // Check if Module 2 should be marked complete
+      const uploadedCount = newAssetDocs.filter(d => d.uploaded).length;
+      const bankAssetsCount = Object.keys(prev.bankAssets).length;
+      const hasAssets = uploadedCount > 0 || bankAssetsCount > 0;
+      
+      const newModules = prev.modules.map((m) => {
+        if (m.id === 2) {
+          return { 
+            ...m, 
+            progress: uploadedCount + bankAssetsCount, 
+            status: hasAssets ? 'completed' as const : 'in-progress' as const 
+          };
+        }
+        if (m.id === 3 && hasAssets) {
+          return { ...m, status: 'pending' as const };
+        }
+        return m;
+      });
+      
+      return { ...prev, assetDocuments: newAssetDocs, discoveredAssets: newDiscoveredAssets, modules: newModules };
+    });
+  };
+
+  const updateBankAsset = (bankId: string, bankName: string, value: number) => {
+    setState((prev) => {
+      const newBankAssets = { ...prev.bankAssets, [bankId]: value };
+      
+      // Add to discovered assets
+      let newDiscoveredAssets = prev.discoveredAssets.filter(a => a.id !== `bank-${bankId}`);
+      newDiscoveredAssets.push({
+        id: `bank-${bankId}`,
+        institution: bankName,
+        accountType: 'Bank Account',
+        value: value,
+      });
+      
+      // Check if Module 2 should be marked complete
+      const uploadedCount = prev.assetDocuments.filter(d => d.uploaded).length;
+      const bankAssetsCount = Object.keys(newBankAssets).length;
+      const hasAssets = uploadedCount > 0 || bankAssetsCount > 0;
+      
+      const newModules = prev.modules.map((m) => {
+        if (m.id === 2) {
+          return { 
+            ...m, 
+            progress: uploadedCount + bankAssetsCount, 
+            status: hasAssets ? 'completed' as const : 'in-progress' as const 
+          };
+        }
+        if (m.id === 3 && hasAssets) {
+          return { ...m, status: 'pending' as const };
+        }
+        return m;
+      });
+      
+      return { ...prev, bankAssets: newBankAssets, discoveredAssets: newDiscoveredAssets, modules: newModules };
+    });
+  };
+
+  const getTotalEstateValue = () => {
+    const docValue = state.assetDocuments
+      .filter(d => d.uploaded)
+      .reduce((sum, d) => sum + d.value, 0);
+    const bankValue = Object.values(state.bankAssets).reduce((sum, v) => sum + v, 0);
+    return docValue + bankValue;
+  };
+
   const resetApp = () => {
     setState({
       triageComplete: false,
@@ -184,6 +318,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       modules: createInitialModules(null),
       banks: initialBanks,
       documents: initialDocuments,
+      assetDocuments: initialAssetDocuments,
+      bankAssets: {},
+      discoveredAssets: [],
     });
   };
 
@@ -196,6 +333,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateBankStatus,
         toggleBankSelection,
         updateDocument,
+        updateAssetDocument,
+        updateBankAsset,
+        getTotalEstateValue,
         resetApp,
       }}
     >

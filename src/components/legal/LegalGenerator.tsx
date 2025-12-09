@@ -26,17 +26,11 @@ interface CourtDocument {
   status: 'drafting' | 'ready' | 'downloaded';
 }
 
-// Mock discovered assets from Module 2
-const MOCK_DISCOVERED_ASSETS = [
-  { id: 'dbs', institution: 'DBS Bank', accountType: 'Savings Account', value: 12500 },
-  { id: 'insurance', institution: 'Great Eastern', accountType: 'Life Insurance Policy', value: 150000 },
-  { id: 'property', institution: 'HDB', accountType: 'Flat (3-Room)', value: 350000 },
-];
-
 export function LegalGenerator() {
-  const { triageResult, modules } = useApp();
+  const { triageResult, modules, discoveredAssets, getTotalEstateValue } = useApp();
   const isProbate = triageResult.legalPath === 'probate';
   const isModule2Complete = modules.find(m => m.id === 2)?.status === 'completed';
+  const totalEstateValue = getTotalEstateValue();
   
   const [generating, setGenerating] = useState(false);
   const [bundleReady, setBundleReady] = useState(false);
@@ -55,8 +49,6 @@ export function LegalGenerator() {
           { id: 'affidavit', name: 'Supporting Affidavit', description: 'Sworn statement of facts', status: 'drafting' },
         ]
   );
-
-  const totalEstateValue = MOCK_DISCOVERED_ASSETS.reduce((sum, asset) => sum + asset.value, 0);
 
   const handleGenerateBundle = async () => {
     setGenerating(true);
@@ -277,24 +269,34 @@ export function LegalGenerator() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {MOCK_DISCOVERED_ASSETS.map((asset, index) => (
-                      <TableRow key={asset.id}>
-                        <TableCell className="text-xs">{index + 1}</TableCell>
-                        <TableCell className="text-xs font-medium">{asset.institution}</TableCell>
-                        <TableCell className="text-xs">{asset.accountType}</TableCell>
-                        <TableCell className="text-xs text-right">
-                          ${asset.value.toLocaleString()}
+                    {discoveredAssets.length > 0 ? (
+                      discoveredAssets.map((asset, index) => (
+                        <TableRow key={asset.id}>
+                          <TableCell className="text-xs">{index + 1}</TableCell>
+                          <TableCell className="text-xs font-medium">{asset.institution}</TableCell>
+                          <TableCell className="text-xs">{asset.accountType}</TableCell>
+                          <TableCell className="text-xs text-right">
+                            ${asset.value.toLocaleString()}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-xs text-center text-muted-foreground py-4">
+                          No assets discovered yet
                         </TableCell>
                       </TableRow>
-                    ))}
-                    <TableRow className="bg-muted/50 font-semibold">
-                      <TableCell colSpan={3} className="text-xs">
-                        TOTAL ESTATE VALUE
-                      </TableCell>
-                      <TableCell className="text-xs text-right">
-                        ${totalEstateValue.toLocaleString()}
-                      </TableCell>
-                    </TableRow>
+                    )}
+                    {discoveredAssets.length > 0 && (
+                      <TableRow className="bg-muted/50 font-semibold">
+                        <TableCell colSpan={3} className="text-xs">
+                          TOTAL ESTATE VALUE
+                        </TableCell>
+                        <TableCell className="text-xs text-right">
+                          ${totalEstateValue.toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </div>
