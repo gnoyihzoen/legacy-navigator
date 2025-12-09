@@ -27,7 +27,7 @@ interface CourtDocument {
 }
 
 export function LegalGenerator() {
-  const { triageResult, modules, discoveredAssets, getTotalEstateValue } = useApp();
+  const { triageResult, modules, discoveredAssets, getTotalEstateValue, updateModuleStatus } = useApp();
   const isProbate = triageResult.legalPath === 'probate';
   const isModule2Complete = modules.find(m => m.id === 2)?.status === 'completed';
   const totalEstateValue = getTotalEstateValue();
@@ -60,6 +60,9 @@ export function LegalGenerator() {
     setBundleReady(true);
     setGenerating(false);
     
+    // Update Module 3 progress
+    updateModuleStatus(3, 'in-progress', 2);
+    
     toast.success('Court Bundle Generated!', {
       description: 'All documents are ready for download and submission.',
     });
@@ -67,6 +70,10 @@ export function LegalGenerator() {
 
   const handleDownloadBundle = () => {
     setDocuments(prev => prev.map(doc => ({ ...doc, status: 'downloaded' as const })));
+    
+    // Update Module 3 progress to complete
+    updateModuleStatus(3, 'completed', 3);
+    
     toast.success('Court Bundle Downloaded', {
       description: 'Print 2 copies and bring to the Service Bureau.',
     });

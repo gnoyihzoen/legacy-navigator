@@ -90,7 +90,7 @@ const createInitialModules = (legalPath: LegalPath): Module[] => [
     description: 'Identify bank accounts and assets',
     status: 'locked',
     progress: 0,
-    total: 6,
+    total: 5,
     route: '/assets',
   },
   {
