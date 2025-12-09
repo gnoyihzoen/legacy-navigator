@@ -3,23 +3,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useApp } from '@/context/AppContext';
 import { BankStatus } from '@/types';
 import { 
-  Building2, Download, Mail, CheckCircle2, Clock, AlertCircle, XCircle, Info, 
-  Upload, FileText, Home, Car, Shield, DollarSign 
+  Building2, Download, CheckCircle2, Clock, XCircle, Info, 
+  Upload, FileText, Home, Car, Shield, DollarSign, Loader2 
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
-const statusOptions = [
-  { value: 'not-started', label: 'Not Started', icon: Clock, color: 'text-muted-foreground' },
-  { value: 'letter-generated', label: 'Letter Generated', icon: Download, color: 'text-primary' },
-  { value: 'sent', label: 'Sent to Bank', icon: Mail, color: 'text-warning' },
-  { value: 'reply-found', label: 'Account Found', icon: CheckCircle2, color: 'text-secondary' },
-  { value: 'reply-not-found', label: 'No Account', icon: XCircle, color: 'text-muted-foreground' },
-];
+// Mock data: DBS returns $12,500, others return no assets
+const BANK_ASSETS_MOCK: Record<string, number> = {
+  'dbs': 12500,
+};
 
 interface AssetDocument {
   id: string;
@@ -64,53 +68,6 @@ const initialAssetDocuments: AssetDocument[] = [
     value: 35000,
   },
 ];
-
-function BankRow({ bank, onToggle, onStatusChange }: { 
-  bank: BankStatus; 
-  onToggle: () => void; 
-  onStatusChange: (status: BankStatus['status']) => void;
-}) {
-  const statusConfig = statusOptions.find((s) => s.value === bank.status)!;
-  const StatusIcon = statusConfig.icon;
-
-  return (
-    <div className={cn(
-      'flex items-center gap-4 p-4 rounded-lg border transition-colors',
-      bank.selected ? 'bg-card border-border' : 'bg-muted/30 border-transparent'
-    )}>
-      <Checkbox
-        checked={bank.selected}
-        onCheckedChange={onToggle}
-        id={bank.id}
-      />
-      <label
-        htmlFor={bank.id}
-        className="flex-1 font-medium text-foreground cursor-pointer"
-      >
-        {bank.name}
-      </label>
-      
-      <div className="flex items-center gap-2">
-        <StatusIcon className={cn('h-4 w-4', statusConfig.color)} />
-        <Select
-          value={bank.status}
-          onValueChange={(value) => onStatusChange(value as BankStatus['status'])}
-        >
-          <SelectTrigger className="w-[160px] h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {statusOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value} className="text-xs">
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
-  );
-}
 
 function AssetDocumentRow({ doc, onUpload }: { 
   doc: AssetDocument; 
@@ -157,12 +114,15 @@ export function BankBroadcaster() {
   const { banks, toggleBankSelection, updateBankStatus } = useApp();
   const [generating, setGenerating] = useState(false);
   const [assetDocs, setAssetDocs] = useState<AssetDocument[]>(initialAssetDocuments);
+  const [scanningBankId, setScanningBankId] = useState<string | null>(null);
+  const [bankAssets, setBankAssets] = useState<Record<string, number>>({});
 
   const selectedBanks = banks.filter((b) => b.selected);
-  const banksWithAccounts = banks.filter((b) => b.status === 'reply-found');
   
   const uploadedDocs = assetDocs.filter((d) => d.uploaded);
-  const totalEstateValue = uploadedDocs.reduce((sum, doc) => sum + doc.value, 0);
+  const docEstateValue = uploadedDocs.reduce((sum, doc) => sum + doc.value, 0);
+  const bankEstateValue = Object.values(bankAssets).reduce((sum, val) => sum + val, 0);
+  const totalEstateValue = docEstateValue + bankEstateValue;
 
   const handleGenerateLetters = async () => {
     if (selectedBanks.length === 0) {
@@ -183,11 +143,15 @@ export function BankBroadcaster() {
 
     setGenerating(false);
     toast.success(`Generated letters for ${selectedBanks.length} banks`, {
-      description: 'Download buttons are now available below',
+      description: 'Status updated to "Awaiting Reply". Upload bank replies when received.',
     });
   };
 
   const handleDownloadLetter = (bank: BankStatus) => {
+    // Also update status to letter-generated if not already
+    if (bank.status === 'not-started') {
+      updateBankStatus(bank.id, 'letter-generated');
+    }
     toast.success(`Downloaded letter for ${bank.name}`, {
       description: 'Template saved to your downloads folder',
     });
@@ -199,6 +163,31 @@ export function BankBroadcaster() {
         toggleBankSelection(bank.id);
       }
     });
+  };
+
+  const handleUploadReply = async (bank: BankStatus) => {
+    setScanningBankId(bank.id);
+    
+    // Simulate OCR/AI scanning for 2 seconds
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    
+    // Check mock data - DBS has assets, others don't
+    const assetValue = BANK_ASSETS_MOCK[bank.id] || 0;
+    
+    if (assetValue > 0) {
+      updateBankStatus(bank.id, 'reply-found');
+      setBankAssets((prev) => ({ ...prev, [bank.id]: assetValue }));
+      toast.success(`Assets found at ${bank.name}!`, {
+        description: `Detected balance: $${assetValue.toLocaleString()}`,
+      });
+    } else {
+      updateBankStatus(bank.id, 'reply-not-found');
+      toast.info(`No assets found at ${bank.name}`, {
+        description: 'The scan detected no accounts held by the deceased.',
+      });
+    }
+    
+    setScanningBankId(null);
   };
 
   const handleUploadAssetDoc = (docId: string) => {
@@ -213,6 +202,36 @@ export function BankBroadcaster() {
     });
   };
 
+  const getStatusBadge = (bank: BankStatus) => {
+    switch (bank.status) {
+      case 'not-started':
+        return <Badge variant="outline" className="text-muted-foreground">Pending</Badge>;
+      case 'letter-generated':
+      case 'sent':
+        return <Badge variant="outline" className="text-warning border-warning">Awaiting Reply</Badge>;
+      case 'reply-found':
+        return (
+          <Badge className="bg-secondary text-secondary-foreground">
+            <CheckCircle2 className="h-3 w-3 mr-1" />
+            Assets Found: ${(bankAssets[bank.id] || 0).toLocaleString()}
+          </Badge>
+        );
+      case 'reply-not-found':
+        return (
+          <Badge variant="secondary" className="text-muted-foreground">
+            <XCircle className="h-3 w-3 mr-1" />
+            No Assets
+          </Badge>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const showUploadButton = (bank: BankStatus) => {
+    return bank.status === 'letter-generated' || bank.status === 'sent';
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -224,7 +243,7 @@ export function BankBroadcaster() {
       </div>
 
       {/* Total Estate Value Summary */}
-      {uploadedDocs.length > 0 && (
+      {(uploadedDocs.length > 0 || bankEstateValue > 0) && (
         <Card className="border-primary bg-primary/5">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -239,9 +258,14 @@ export function BankBroadcaster() {
                   </p>
                 </div>
               </div>
-              <Badge variant="outline" className="text-primary border-primary">
-                {uploadedDocs.length} document{uploadedDocs.length > 1 ? 's' : ''} uploaded
-              </Badge>
+              <div className="flex flex-col gap-1 items-end text-sm text-muted-foreground">
+                {docEstateValue > 0 && (
+                  <span>Documents: ${docEstateValue.toLocaleString()}</span>
+                )}
+                {bankEstateValue > 0 && (
+                  <span>Bank Accounts: ${bankEstateValue.toLocaleString()}</span>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -282,17 +306,17 @@ export function BankBroadcaster() {
           <div className="flex gap-3">
             <Info className="h-5 w-5 text-accent-foreground flex-shrink-0 mt-0.5" />
             <div className="text-sm">
-              <p className="font-medium text-accent-foreground">Discover Unknown Accounts</p>
+              <p className="font-medium text-accent-foreground">Privacy-First Offline Loop</p>
               <p className="text-muted-foreground mt-1">
-                We'll generate inquiry letters for each bank you select. Send these letters to each bank's 
-                estate management department. Once the bank replies, update the status here to track your progress.
+                Banks will reply via email or mail offline. Once you receive a reply, upload it here 
+                and our system will scan the document to extract asset information.
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Bank List */}
+      {/* Bank Broadcaster Table */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -302,106 +326,110 @@ export function BankBroadcaster() {
                 Financial Institution Outreach
               </CardTitle>
               <CardDescription className="mt-1">
-                Select banks to generate enquiry letters
+                Generate enquiry letters and manage bank responses
               </CardDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={handleSelectAll}>
-              Select All
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleSelectAll}>
+                Select All
+              </Button>
+              <Button
+                onClick={handleGenerateLetters}
+                disabled={selectedBanks.length === 0 || generating}
+                size="sm"
+              >
+                {generating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-2 h-4 w-4" />
+                    Generate Letters ({selectedBanks.length})
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-2">
-          {banks.map((bank) => (
-            <BankRow
-              key={bank.id}
-              bank={bank}
-              onToggle={() => toggleBankSelection(bank.id)}
-              onStatusChange={(status) => updateBankStatus(bank.id, status)}
-            />
-          ))}
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead>Bank</TableHead>
+                  <TableHead className="text-center">Outreach</TableHead>
+                  <TableHead className="text-center">Response Status</TableHead>
+                  <TableHead className="text-center">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {banks.map((bank) => (
+                  <TableRow key={bank.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={bank.selected}
+                        onCheckedChange={() => toggleBankSelection(bank.id)}
+                        id={bank.id}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">{bank.name}</TableCell>
+                    <TableCell className="text-center">
+                      {bank.status === 'not-started' ? (
+                        <Badge variant="outline" className="text-muted-foreground">
+                          <Clock className="h-3 w-3 mr-1" />
+                          Pending
+                        </Badge>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDownloadLetter(bank)}
+                          className="text-primary"
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Download
+                        </Button>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {getStatusBadge(bank)}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {scanningBankId === bank.id ? (
+                        <div className="flex items-center justify-center gap-2 text-primary">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="text-sm">Scanning Document...</span>
+                        </div>
+                      ) : showUploadButton(bank) ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleUploadReply(bank)}
+                        >
+                          <Upload className="h-4 w-4 mr-1" />
+                          Upload Reply
+                        </Button>
+                      ) : bank.status === 'reply-found' || bank.status === 'reply-not-found' ? (
+                        <CheckCircle2 className="h-4 w-4 text-muted-foreground mx-auto" />
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
-
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <Button
-          onClick={handleGenerateLetters}
-          disabled={selectedBanks.length === 0 || generating}
-          className="flex-1"
-          size="lg"
-        >
-          {generating ? (
-            <>
-              <Clock className="mr-2 h-4 w-4 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <Mail className="mr-2 h-4 w-4" />
-              Generate Enquiry Letters ({selectedBanks.length})
-            </>
-          )}
-        </Button>
-      </div>
-
-      {/* Generated Letters */}
-      {banks.some((b) => b.status !== 'not-started') && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Download Letters</CardTitle>
-            <CardDescription>
-              Print or email these letters to each bank's estate department
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {banks
-                .filter((b) => b.status !== 'not-started')
-                .map((bank) => (
-                  <Button
-                    key={bank.id}
-                    variant="outline"
-                    className="justify-start h-auto py-3"
-                    onClick={() => handleDownloadLetter(bank)}
-                  >
-                    <Download className="mr-2 h-4 w-4 text-primary" />
-                    <span className="flex-1 text-left">{bank.name}</span>
-                    <Badge
-                      variant={bank.status === 'reply-found' ? 'default' : 'secondary'}
-                      className="ml-2"
-                    >
-                      {statusOptions.find((s) => s.value === bank.status)?.label}
-                    </Badge>
-                  </Button>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Summary */}
-      {banksWithAccounts.length > 0 && (
-        <Card className="border-secondary bg-secondary/5">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="h-5 w-5 text-secondary" />
-              <div>
-                <p className="font-medium">
-                  {banksWithAccounts.length} bank{banksWithAccounts.length > 1 ? 's' : ''} confirmed accounts found
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {banksWithAccounts.map((b) => b.name).join(', ')}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Disclaimer */}
       <p className="text-xs text-muted-foreground text-center">
         Once the bank replies, the interaction moves offline between you and the bank.
-        This tool only helps you track the discovery process.
+        This tool helps you track discovery and aggregate estate value.
       </p>
     </div>
   );
