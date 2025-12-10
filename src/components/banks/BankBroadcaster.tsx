@@ -1,18 +1,41 @@
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useApp } from '@/context/AppContext';
-import { BankStatus } from '@/types';
-import { 
-  Building2, Download, CheckCircle2, Clock, XCircle, Info, 
-  Upload, FileText, Home, Car, Shield, DollarSign, Loader2 
-} from 'lucide-react';
-import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
-import axios from 'axios'; // IMPORT AXIOS
+import { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useApp } from "@/context/AppContext";
+import { BankStatus } from "@/types";
+import {
+  Building2,
+  Download,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  Info,
+  Upload,
+  FileText,
+  Home,
+  Car,
+  Shield,
+  DollarSign,
+  Loader2,
+} from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import axios from "axios"; // IMPORT AXIOS
 import {
   Table,
   TableBody,
@@ -20,36 +43,56 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 
 // Mock data: DBS returns $12,500, others return $5,000
 const BANK_ASSETS_MOCK: Record<string, number> = {
-  'dbs': 12500,
+  dbs: 12500,
 };
 
 const iconMap: Record<string, typeof FileText> = {
-  'bank-statement': FileText,
-  'insurance-plan': Shield,
-  'property-lease': Home,
-  'vehicle-registration': Car,
+  "bank-statement": FileText,
+  "insurance-plan": Shield,
+  "property-lease": Home,
+  "vehicle-registration": Car,
 };
 
-function AssetDocumentRow({ doc, onUpload }: { 
-  doc: { id: string; name: string; description: string; uploaded: boolean; value: number }; 
+function AssetDocumentRow({
+  doc,
+  onUpload,
+}: {
+  doc: {
+    id: string;
+    name: string;
+    description: string;
+    uploaded: boolean;
+    value: number;
+  };
   onUpload: () => void;
 }) {
   const Icon = iconMap[doc.id] || FileText;
 
   return (
-    <div className={cn(
-      'flex items-center gap-4 p-4 rounded-lg border transition-colors',
-      doc.uploaded ? 'bg-secondary/10 border-secondary/30' : 'bg-card border-border'
-    )}>
-      <div className={cn(
-        'p-2 rounded-lg',
-        doc.uploaded ? 'bg-secondary/20' : 'bg-muted'
-      )}>
-        <Icon className={cn('h-5 w-5', doc.uploaded ? 'text-secondary' : 'text-muted-foreground')} />
+    <div
+      className={cn(
+        "flex items-center gap-4 p-4 rounded-lg border transition-colors",
+        doc.uploaded
+          ? "bg-secondary/10 border-secondary/30"
+          : "bg-card border-border",
+      )}
+    >
+      <div
+        className={cn(
+          "p-2 rounded-lg",
+          doc.uploaded ? "bg-secondary/20" : "bg-muted",
+        )}
+      >
+        <Icon
+          className={cn(
+            "h-5 w-5",
+            doc.uploaded ? "text-secondary" : "text-muted-foreground",
+          )}
+        />
       </div>
       <div className="flex-1">
         <p className="font-medium text-foreground">{doc.name}</p>
@@ -75,72 +118,84 @@ function AssetDocumentRow({ doc, onUpload }: {
   );
 }
 
-const WORKATO_WEBHOOK_URL = "https://webhooks.workato.com/webhooks/rest/0ed6e747-1a90-4d0a-8f7d-861bcad7a6ee/blast_request";
+const WORKATO_WEBHOOK_URL =
+  "https://webhooks.workato.com/webhooks/rest/0ed6e747-1a90-4d0a-8f7d-861bcad7a6ee/blast_request";
 
 export function BankBroadcaster() {
-  const { banks, toggleBankSelection, updateBankStatus, assetDocuments, bankAssets, updateAssetDocument, updateBankAsset, getTotalEstateValue } = useApp();
+  const {
+    banks,
+    toggleBankSelection,
+    updateBankStatus,
+    assetDocuments,
+    bankAssets,
+    updateAssetDocument,
+    updateBankAsset,
+    getTotalEstateValue,
+  } = useApp();
   const [generating, setGenerating] = useState(false);
   const [scanningBankId, setScanningBankId] = useState<string | null>(null);
 
   const selectedBanks = banks.filter((b) => b.selected);
-  
+
   // Track which banks user marked as "assets-found" (pending upload)
-  const [pendingUpload, setPendingUpload] = useState<Record<string, boolean>>({});
-  
+  const [pendingUpload, setPendingUpload] = useState<Record<string, boolean>>(
+    {},
+  );
+
   const uploadedDocs = assetDocuments.filter((d) => d.uploaded);
   const docEstateValue = uploadedDocs.reduce((sum, doc) => sum + doc.value, 0);
-  const bankEstateValue = Object.values(bankAssets).reduce((sum, val) => sum + val, 0);
+  const bankEstateValue = Object.values(bankAssets).reduce(
+    (sum, val) => sum + val,
+    0,
+  );
   const totalEstateValue = getTotalEstateValue();
 
   const handleGenerateLetters = async () => {
     if (selectedBanks.length === 0) {
-      toast.error('Please select at least one bank');
+      toast.error("Please select at least one bank");
       return;
     }
 
     setGenerating(true);
-    
+
     // 1. Prepare Payload for Workato
     // 1. Prepare Payload for Workato
     const payload = {
-        applicant_name: "Tan Xiao Ming",
-        deceased_name: "Tan Ah Kow",
-        deceased_nric: "S1234567A",
-        selected_banks: selectedBanks.map(b => b.name),
-        
-        // The fixed URLs for the showcase
-        document_urls: [
-            "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", 
-            "https://pdfobject.com/pdf/sample.pdf",                                    
-            "https://unec.edu.az/application/uploads/2014/12/pdf-sample.pdf"          
-        ],
+      applicant_name: "Tan Xiao Ming",
+      deceased_name: "Tan Ah Kow",
+      deceased_nric: "S1234567A",
+      selected_banks: selectedBanks.map((b) => b.name),
 
-        // The specific names for those documents (in the same order)
-        document_names: [
-            "Death Certificate",
-            "Birth Certificate",
-            "NRIC"
-        ]
+      // The fixed URLs for the showcase
+      document_urls: [
+        "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+        "https://pdfobject.com/pdf/sample.pdf",
+        "https://unec.edu.az/application/uploads/2014/12/pdf-sample.pdf",
+      ],
+
+      // The specific names for those documents (in the same order)
+      document_names: ["Death Certificate", "Birth Certificate", "NRIC"],
     };
 
     try {
-        // 2. Send to Workato
-        // We use a try-catch because Workato might return CORS errors in localhost
-        // but the webhook usually still fires successfully.
-        await axios.post(WORKATO_WEBHOOK_URL, payload);
-        
-        toast.success(`Enquiry blast sent to ${selectedBanks.length} institutions via Workato.`);
+      // 2. Send to Workato
+      // We use a try-catch because Workato might return CORS errors in localhost
+      // but the webhook usually still fires successfully.
+      await axios.post(WORKATO_WEBHOOK_URL, payload);
 
+      toast.success(
+        `Enquiry blast sent to ${selectedBanks.length} institutions via Workato.`,
+      );
     } catch (error) {
-        console.error("Workato Error:", error);
-        // Fallback for demo if API fails
-        toast.success(`Letters generated (Demo Mode - API bypassed)`);
+      console.error("Workato Error:", error);
+      // Fallback for demo if API fails
+      toast.success(`Letters generated (Demo Mode - API bypassed)`);
     }
-    
+
     // 3. Update UI State (Keep existing logic)
     selectedBanks.forEach((bank) => {
-      if (bank.status === 'not-started') {
-        updateBankStatus(bank.id, 'letter-generated');
+      if (bank.status === "not-started") {
+        updateBankStatus(bank.id, "letter-generated");
       }
     });
 
@@ -149,11 +204,11 @@ export function BankBroadcaster() {
 
   const handleDownloadLetter = (bank: BankStatus) => {
     // Also update status to letter-generated if not already
-    if (bank.status === 'not-started') {
-      updateBankStatus(bank.id, 'letter-generated');
+    if (bank.status === "not-started") {
+      updateBankStatus(bank.id, "letter-generated");
     }
     toast.success(`Downloaded letter for ${bank.name}`, {
-      description: 'Template saved to your downloads folder',
+      description: "Template saved to your downloads folder",
     });
   };
 
@@ -166,11 +221,11 @@ export function BankBroadcaster() {
   };
 
   const handleResponseStatusChange = (bank: BankStatus, value: string) => {
-    if (value === 'no-assets') {
-      updateBankStatus(bank.id, 'reply-not-found');
+    if (value === "no-assets") {
+      updateBankStatus(bank.id, "reply-not-found");
       setPendingUpload((prev) => ({ ...prev, [bank.id]: false }));
       toast.info(`Marked ${bank.name} as no assets found`);
-    } else if (value === 'assets-found') {
+    } else if (value === "assets-found") {
       setPendingUpload((prev) => ({ ...prev, [bank.id]: true }));
       toast.info(`Please upload the bank reply for ${bank.name}`);
     }
@@ -178,20 +233,20 @@ export function BankBroadcaster() {
 
   const handleUploadReply = async (bank: BankStatus) => {
     setScanningBankId(bank.id);
-    
+
     // Simulate OCR/AI scanning for 2 seconds
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    
+
     // Check mock data - DBS has assets ($12,500), others default to $5,000
     const assetValue = BANK_ASSETS_MOCK[bank.id] || 5000;
-    
-    updateBankStatus(bank.id, 'reply-found');
+
+    updateBankStatus(bank.id, "reply-found");
     updateBankAsset(bank.id, bank.name, assetValue);
     setPendingUpload((prev) => ({ ...prev, [bank.id]: false }));
     toast.success(`Document scanned for ${bank.name}!`, {
       description: `Detected balance: $${assetValue.toLocaleString()}`,
     });
-    
+
     setScanningBankId(null);
   };
 
@@ -205,7 +260,7 @@ export function BankBroadcaster() {
 
   const getResponseStatusCell = (bank: BankStatus) => {
     // If finalized (uploaded or no assets), show badge
-    if (bank.status === 'reply-found') {
+    if (bank.status === "reply-found") {
       return (
         <Badge className="bg-secondary text-secondary-foreground">
           <CheckCircle2 className="h-3 w-3 mr-1" />
@@ -213,8 +268,8 @@ export function BankBroadcaster() {
         </Badge>
       );
     }
-    
-    if (bank.status === 'reply-not-found') {
+
+    if (bank.status === "reply-not-found") {
       return (
         <Badge variant="secondary" className="text-muted-foreground">
           <XCircle className="h-3 w-3 mr-1" />
@@ -222,11 +277,13 @@ export function BankBroadcaster() {
         </Badge>
       );
     }
-    
+
     // If letter generated, show dropdown
-    if (bank.status === 'letter-generated' || bank.status === 'sent') {
+    if (bank.status === "letter-generated" || bank.status === "sent") {
       return (
-        <Select onValueChange={(value) => handleResponseStatusChange(bank, value)}>
+        <Select
+          onValueChange={(value) => handleResponseStatusChange(bank, value)}
+        >
           <SelectTrigger className="w-[140px] h-8 text-xs">
             <SelectValue placeholder="Select status" />
           </SelectTrigger>
@@ -237,7 +294,7 @@ export function BankBroadcaster() {
         </Select>
       );
     }
-    
+
     // Not started
     return <span className="text-sm text-muted-foreground">—</span>;
   };
@@ -251,7 +308,7 @@ export function BankBroadcaster() {
         </div>
       );
     }
-    
+
     if (pendingUpload[bank.id]) {
       return (
         <Button
@@ -264,11 +321,11 @@ export function BankBroadcaster() {
         </Button>
       );
     }
-    
-    if (bank.status === 'reply-found' || bank.status === 'reply-not-found') {
+
+    if (bank.status === "reply-found" || bank.status === "reply-not-found") {
       return <CheckCircle2 className="h-4 w-4 text-muted-foreground mx-auto" />;
     }
-    
+
     return <span className="text-sm text-muted-foreground">—</span>;
   };
 
@@ -276,7 +333,9 @@ export function BankBroadcaster() {
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-semibold text-foreground">Asset Discovery</h2>
+        <h2 className="text-2xl font-semibold text-foreground">
+          Asset Discovery
+        </h2>
         <p className="text-muted-foreground mt-1">
           Identify and document assets belonging to the deceased
         </p>
@@ -292,7 +351,9 @@ export function BankBroadcaster() {
                   <DollarSign className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Documented Estate Value</p>
+                  <p className="text-sm text-muted-foreground">
+                    Total Documented Estate Value
+                  </p>
                   <p className="text-2xl font-bold text-foreground">
                     ${totalEstateValue.toLocaleString()}
                   </p>
@@ -303,7 +364,9 @@ export function BankBroadcaster() {
                   <span>Documents: ${docEstateValue.toLocaleString()}</span>
                 )}
                 {bankEstateValue > 0 && (
-                  <span>Bank Accounts: ${bankEstateValue.toLocaleString()}</span>
+                  <span>
+                    Bank Accounts: ${bankEstateValue.toLocaleString()}
+                  </span>
                 )}
               </div>
             </div>
@@ -321,7 +384,8 @@ export function BankBroadcaster() {
                 Documents You Already Have
               </CardTitle>
               <CardDescription className="mt-1">
-                Upload any existing documents for assets you've already identified
+                Upload any existing documents for assets you've already
+                identified
               </CardDescription>
             </div>
             <Badge variant="secondary">
@@ -346,10 +410,13 @@ export function BankBroadcaster() {
           <div className="flex gap-3">
             <Info className="h-5 w-5 text-accent-foreground flex-shrink-0 mt-0.5" />
             <div className="text-sm">
-              <p className="font-medium text-accent-foreground">Privacy-First Offline Loop</p>
+              <p className="font-medium text-accent-foreground">
+                Privacy-First Offline Loop
+              </p>
               <p className="text-muted-foreground mt-1">
-                Banks will reply via email or mail offline. Once you receive a reply, upload it here 
-                and our system will scan the document to extract asset information.
+                Banks will reply via email or mail offline. Once you receive a
+                reply, upload it here and our system will scan the document to
+                extract asset information.
               </p>
             </div>
           </div>
@@ -417,8 +484,11 @@ export function BankBroadcaster() {
                     </TableCell>
                     <TableCell className="font-medium">{bank.name}</TableCell>
                     <TableCell className="text-center">
-                      {bank.status === 'not-started' ? (
-                        <Badge variant="outline" className="text-muted-foreground">
+                      {bank.status === "not-started" ? (
+                        <Badge
+                          variant="outline"
+                          className="text-muted-foreground"
+                        >
                           <Clock className="h-3 w-3 mr-1" />
                           Pending
                         </Badge>
@@ -450,8 +520,8 @@ export function BankBroadcaster() {
 
       {/* Disclaimer */}
       <p className="text-xs text-muted-foreground text-center">
-        Once the bank replies, the interaction moves offline between you and the bank.
-        This tool helps you track discovery and aggregate estate value.
+        Once the bank replies, the interaction moves offline between you and the
+        bank. This tool helps you track discovery and aggregate estate value.
       </p>
     </div>
   );
