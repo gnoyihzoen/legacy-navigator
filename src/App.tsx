@@ -12,6 +12,7 @@ import AssetsPage from "./pages/AssetsPage";
 import LegalPage from "./pages/LegalPage";
 import ClosingPage from "./pages/ClosingPage";
 import NotFound from "./pages/NotFound";
+import Chatbot from "@/components/chat/Chatbot";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,9 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          {/* Chatbot sits here, available on all pages */}
+          <Chatbot /> 
+          
           <Routes>
             <Route path="/" element={<Welcome />} />
             <Route path="/triage" element={<TriagePage />} />
@@ -30,7 +34,6 @@ const App = () => (
             <Route path="/assets" element={<AssetsPage />} />
             <Route path="/legal" element={<LegalPage />} />
             <Route path="/closing" element={<ClosingPage />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
