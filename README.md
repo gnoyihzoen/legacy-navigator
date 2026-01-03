@@ -1,73 +1,52 @@
-# Welcome to your Lovable project
+Legacy Navigator
 
-## Project info
+Legacy Navigator is a comprehensive full-stack platform designed to guide families through afterlife administration. The platform simplifies complex processes such as asset discovery, documentation, and legal guidance through automation and AI-assisted support.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+🌟 Project Overview
 
-## How can I edit this code?
+Legacy Navigator helps users manage posthumous administrative tasks by:
 
-There are several ways of editing your application.
+Automating asset discovery
 
-**Use Lovable**
+Using OCR to extract and structure a Schedule of Assets
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+Generating court-ready document packages
 
-Changes made via Lovable will be committed automatically to this repo.
+Providing assistance through an agentic AI chatbot for uncertain legal queries
 
-**Use your preferred IDE**
+The goal is to reduce complexity, errors, and emotional burden during a difficult time by offering a clear, guided digital experience.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
+🛠️ Tech Stack
 
 This project is built with:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Frontend: React, TypeScript, Vite
 
-## How can I deploy this project?
+UI: Tailwind CSS, shadcn-ui
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+Backend & AI: Python, Agentic AI
 
-## Can I connect a custom domain to my Lovable project?
+Other: OCR integration, Full-stack architecture
 
-Yes, you can!
+🚀 Getting Started (Local Development)
+Prerequisites
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Node.js & npm
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Recommended installation via nvm
+
+Setup Instructions
+# Clone the repository
+git clone https://github.com/gnoyihzoen/legacy-navigator.git
+
+# Navigate to the project directory
+cd legacy-navigator
+
+# Install dependencies
+npm install
+
+# Start the development server
+npm run dev
+
+
+The app will start with hot-reloading enabled for development.
